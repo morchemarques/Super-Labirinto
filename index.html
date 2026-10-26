@@ -25,7 +25,7 @@ canvas{border:2px solid #3a4cff;border-radius:6px;background:#04061a}
 <div id="app">
 <h1>SUPER LABIRINTO</h1>
 <div id="hud"><div id="ch"></div><span>FASE <b id="lv">1</b></span></div>
-<div id="hud2"><span>RECORDE <b id="hi">0</b></span><span id="fx"></span><span><button id="fs" title="Tela cheia">⛶</button><button id="mu" title="Som">🔊</button><button id="ps" title="Pausa">⏸</button><button id="inst" style="display:none" title="Instalar">⬇</button></span></div>
+<div id="hud2"><span>RECORDE <b id="hi">0</b></span><span id="fx"></span><span><button id="sh" title="Compartilhar">📤</button><button id="fs" title="Tela cheia">⛶</button><button id="mu" title="Som">🔊</button><button id="ps" title="Pausa">⏸</button><button id="inst" style="display:none" title="Instalar">⬇</button></span></div>
 <div id="wrap"><canvas id="c"></canvas><div id="ov"></div></div>
 </div>
 <script>
@@ -159,7 +159,7 @@ $('fx').textContent=(net=='guest'?ping+'ms ':'')+(freeze>0?'⭐'+Math.ceil(freez
 function show(h){const o=$('ov');o.innerHTML=h;o.style.display='flex'}
 function hide(){$('ov').style.display='none'}
 function menu(){closeNet();net='solo';me=0;paused=false;lastSt='';initP(1);startLevel(1,1);state='menu';hud();
-show('<h2>SUPER LABIRINTO</h2><p>Colete tudo e fuja das sombras.<br>Até 6 jogadores no mesmo Wi-Fi.</p><button onclick="solo()">▶ JOGAR SOZINHO</button><button onclick="host()">📡 CRIAR SALA</button><input id="rc" maxlength="4" placeholder="CÓDIGO" value="'+(qs.get('sala')||'')+'"><button onclick="joinRoom()">🔗 ENTRAR NA SALA</button><p id="mm">Recorde: '+hi+'</p>')}
+show('<h2>SUPER LABIRINTO</h2><p>Colete tudo e fuja das sombras.<br>Até 6 jogadores no mesmo Wi-Fi.</p><button onclick="solo()">▶ JOGAR SOZINHO</button><button onclick="host()">📡 CRIAR SALA</button><input id="rc" maxlength="4" placeholder="CÓDIGO" value="'+(qs.get('sala')||'')+'"><button onclick="joinRoom()">🔗 ENTRAR NA SALA</button><button onclick="shareGame()">📤 COMPARTILHAR O JOGO</button><p id="mm">Recorde: '+hi+'</p><p><a href="'+PORTAL+'" target="_blank" rel="noopener" style="color:#4cc9f0">Mais projetos · Portal Favoritos</a></p>')}
 function solo(){A();net='solo';me=0;initP(1);hide();startLevel(1)}
 function msg(t){const e=$('mm');if(e)e.textContent=t}
 async function host(){A();let sv=false;if(/^https?:$/.test(location.protocol)){try{const r=await fetch('/ip');sv=r.ok&&(await r.json()).ips!==undefined}catch(e){}}
@@ -234,6 +234,14 @@ if(state=='ready')cx.fillText('FASE '+G.lv,W/2,11*T+9);if(state=='clear')cx.fill
 function rs(){const w=$('wrap'),s=Math.floor(Math.min(w.clientWidth/W,w.clientHeight/H)*100)/100;if(s>0){cv.style.width=W*s+'px';cv.style.height=H*s+'px'}}
 addEventListener('resize',rs);
 let last=0,acc=0;function loop(t){acc+=Math.min(100,t-last);last=t;while(acc>=16.67){tick();acc-=16.67}draw();requestAnimationFrame(loop)}
+// ---------- Compartilhar ----------
+const SITE='https://morchemarques.github.io/Super-Labirinto/',PORTAL='https://morchemarques.github.io/portal-favoritos/';
+function shareGame(){const url=/^https?:$/.test(location.protocol)&&!/localhost|^\d+\.\d+\.\d+\.\d+/.test(location.hostname)?location.origin+location.pathname:SITE,
+d={title:'Super Labirinto',text:'Jogue Super Labirinto comigo! Até 6 jogadores no mesmo Wi-Fi.',url};
+if(navigator.share)navigator.share(d).catch(()=>{});
+else if(navigator.clipboard)navigator.clipboard.writeText(d.text+' '+url).then(()=>alert('Link copiado!')).catch(()=>prompt('Copie o link:',url));
+else prompt('Copie o link:',url)}
+$('sh').onclick=shareGame;
 // ---------- Tela cheia ----------
 const de=document.documentElement,rf=de.requestFullscreen||de.webkitRequestFullscreen;
 if(!rf)$('fs').style.display='none';
