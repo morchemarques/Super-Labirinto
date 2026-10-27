@@ -1,4 +1,4 @@
-const K='sl-v2',F=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const K='sl-v3',F=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(K).then(c=>c.addAll(F)).catch(()=>{}));self.skipWaiting()});
 self.addEventListener('activate',e=>e.waitUntil(clients.claim()));
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);
