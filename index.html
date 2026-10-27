@@ -29,7 +29,7 @@ canvas{border:2px solid #3a4cff;border-radius:6px;background:#04061a}
 <div id="wrap"><canvas id="c"></canvas><div id="ov"></div></div>
 </div>
 <script>
-const T=16,DX=[1,0,-1,0],DY=[0,1,0,-1];let C=19,R=21,W=C*T,H=R*T,HC=9,HY=9,dk=null,dkx=null,PT=[],ASP=0;
+const T=16,DX=[1,0,-1,0],DY=[0,1,0,-1];let C=19,R=21,W=C*T,H=R*T,HC=9,HY=9,dk=null,dkx=null,PT=[],ASP=0,FB=false;
 const PC=['#ff5a5f','#3ddc97','#4cc9f0','#ffd23f','#c77dff','#ff9f1c'],EC=['#8a5cff','#b5f23d','#e8ecff','#ffb703'];
 let SP=[[9,15],[5,15],[13,15],[3,17],[15,17],[9,19]];const MODES=['house','leave','norm','eaten'];
 const ITEMS={ch:{e:'🍒',p:100,fx:'',n:'Cereja'},st:{e:'🍓',p:300,fx:'',n:'Morango'},di:{e:'💎',p:500,fx:'dia',n:'Diamante'},sr:{e:'⭐',p:200,fx:'star',n:'Estrela'},hr:{e:'❤️',p:100,fx:'life',n:'Vida'}};
@@ -47,36 +47,46 @@ function playEv(k,s){if(k=='w'&&s!=me)return;if(S[k])S[k]()}
 // ---------- Gerador de labirintos originais (simétricos, conexos) ----------
 function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const ok=(x,y,door)=>{x=(x+C)%C;if(y<0||y>=R)return false;const c=grid[y][x];return c!='#'&&(c!='-'||!!door)};
-const SHN={plain:'Clássico',diamond:'Diamante',heart:'Coração',cross:'Cruz',hourglass:'Ampulheta',circle:'Círculo',octagon:'Octógono'};
-const LVP=[{sh:'plain',c:19,mod:'',nm:'CLÁSSICO',h:'Colete tudo e fuja!'},
-{sh:'diamond',c:15,mod:'portal',nm:'PORTAIS',h:'Entre num portal e saia no outro!'},
-{sh:'heart',c:19,mod:'dark',nm:'ESCURIDÃO',h:'Só se enxerga perto de cada jogador.'},
-{sh:'cross',c:23,mod:'mirror',nm:'ESPELHO',h:'Controles invertidos!'},
-{sh:'hourglass',c:19,mod:'turbo',nm:'TURBO',h:'Tudo 18% mais rápido!'},
-{sh:'circle',c:23,mod:'bonus',nm:'BÔNUS',h:'Chuva de itens especiais!'},
-{sh:'octagon',c:15,mod:'feast',nm:'BANQUETE',h:'Pastilhas de poder por todo lado!'}];
-const plan=n=>LVP[((n||G.lv)-1)%LVP.length];
-function inShape(sh,x,y){if(Math.abs(x-HC)<=5&&Math.abs(y-HY)<=4)return true;
-const u=(x-(C-1)/2)/((C-1)/2),v=(y-(R-1)/2)/((R-1)/2),a=Math.abs(u),b=Math.abs(v);
-switch(sh){case'diamond':return a+b<=1.08;case'circle':return u*u+v*v<=1.04;case'octagon':return a+b<=1.55&&a<=.97&&b<=.97;
-case'cross':return a<=.45||b<=.4;case'hourglass':return a<=.34+.7*b;
-case'heart':{const X=u*1.25,Y=-v*1.2+.2,t=X*X+Y*Y-1;return t*t*t-X*X*Y*Y*Y<=0}default:return true}}
+// silhuetas: [id, emoji, nome, cor das paredes]
+const SHP=[['apple','🍎','Maçã','#ff4d4d'],['cherry','🍒','Cereja','#e63946'],['tree','🌳','Árvore','#3ddc97'],['flower','🌸','Flor','#ff7ac6'],['strawberry','🍓','Morango','#ff5d8f'],['pine','🌲','Pinheiro','#2bb673'],
+['pear','🍐','Pera','#b5e048'],['mushroom','🍄','Cogumelo','#ff6b6b'],['tulip','🌷','Tulipa','#ff9f1c'],['pineapple','🍍','Abacaxi','#ffd23f'],['melon','🍉','Melancia','#4ade80'],['sun','🌻','Girassol','#ffc300']];
+const MODS=[{mod:'',nm:'CLÁSSICO',h:'Colete tudo e fuja!'},{mod:'portal',nm:'PORTAIS',h:'Entre num portal e saia no outro!'},{mod:'dark',nm:'ESCURIDÃO',h:'Só se enxerga perto de cada jogador.'},
+{mod:'mirror',nm:'ESPELHO',h:'Controles invertidos!'},{mod:'turbo',nm:'TURBO',h:'Tudo 18% mais rápido!'},{mod:'bonus',nm:'BÔNUS',h:'Chuva de itens especiais!'},{mod:'feast',nm:'BANQUETE',h:'Pastilhas de poder por todo lado!'}];
+const LVC=[19,23,15,19,19,15,19,23,23,19,23,15],LVD=[.1,.28,.04,.18,.3,.06,.12,.22,.03,.15,.26,.08]; // colunas (dificuldade) e abertura dos corredores
+let _pn=0,_pv=null;
+function plan(n){n=n||G.lv;if(n==_pn)return _pv;const i=n-1,s=SHP[i%12],m=MODS[i%7];_pn=n;return _pv={sh:s[0],em:s[1],sn:s[2],col:s[3],c:LVC[i%12],dn:LVD[(i*5)%12],mod:m.mod,nm:m.nm,h:m.h}}
+function inShape(sh,x,y){if(Math.abs(x-HC)<=4&&Math.abs(y-HY)<=4)return true;
+const u=(x-(C-1)/2)/((C-1)/2),v=(y-(R-1)/2)/((R-1)/2),a=Math.abs(u),h=Math.hypot;
+switch(sh){
+case'apple':return h(u*1.05,v+.1)<=.9||(a<.13&&v<-.5)||h((a-.3)*2.2,(v+.85)*3)<.35;
+case'cherry':{const um=.55*(v+.9)/.85;return h(a-.5,v-.45)<=.5||(Math.abs(a-um)<.13&&v>-.9&&v<-.05)||h((u-.3)*2,(v+.85)*3)<.4}
+case'tree':return h(u,v+.3)<=.78||(a<.14&&v>.3);
+case'flower':{if(h(u,v+.3)<=.3||(a<.1&&v>-.3)||h((a-.3)*2.2,(v-.5)*3)<.4)return true;for(let k=0;k<6;k++){const t=Math.PI/2+k*Math.PI/3;if(h(u-.5*Math.cos(t),v+.3-.5*Math.sin(t))<=.33)return true}return false}
+case'strawberry':{const hw=.92*(1-Math.pow(Math.max(0,(v+.85)/1.8),1.6));return(v>-.85&&v<.95&&a<=hw)||(v<=-.8&&a<.45)}
+case'pine':{const t=(v+1)/1.7;return(v<=.72&&a<=t*.5*(.78+.22*((t*3.5)%1)))||(a<.14&&v>.7)}
+case'pear':return h(u*1.4,v+.45)<=.6||h(u,(v-.35)*1.05)<=.78||(a<.1&&v<-.85);
+case'mushroom':return(v<=.15&&h(u,(v-.15)*1.1)<=.98)||(a<=.32&&v>.1);
+case'tulip':return(v<=.2&&h(u,(v+.2)*.9)<=.62)||(a>.25&&a<.6&&v<-.55&&v>-.95)||(a<.1&&v>.1)||h((a-.35)*2.4,(v-.55)*2.4)<.4;
+case'pineapple':return h(u/.62,(v-.25)/.72)<=1||(v<-.4&&v>-1&&(a<=.1||(a>=.2&&a<=.36&&v>-.8)||(v>-.65&&a<.4)));
+case'melon':return v>=-.45&&h(u,(v+.45)*.95)<=.98;
+case'sun':{const r=h(u,v+.25),t=Math.atan2(v+.25,u);return r<=.68+.18*Math.cos(10*t)||(a<.1&&v>.4)||h((a-.35)*2.2,(v-.6)*2.4)<.4}
+default:return true}}
 // o formato do labirinto acompanha a proporção da tela; o tamanho (15/19/23/27 colunas) muda a dificuldade
 function pickDims(n){const w=$('wrap'),a0=w.clientWidth/w.clientHeight,a=ASP||(isFinite(a0)&&a0>0?a0:.72);
-C=Math.min(27,plan(n).c+4*(((n-1)/LVP.length)|0));let best=17,bd=9;for(const r of[17,21,25,29,33,37]){const d=Math.abs(C/r-a);if(d<bd){bd=d;best=r}}
+C=Math.min(27,plan(n).c+4*(((n-1)/12)|0));let best=17,bd=9;for(const r of[17,21,25,29,33,37]){const d=Math.abs(C/r-a);if(d<bd){bd=d;best=r}}
 R=best;HC=(C-1)/2;HY=(R-3)/2}
-function mk(r,sh){const NX=(HC+1)/2,NY=(R-1)/2,g=Array.from({length:R},()=>Array(C).fill('#')),vis=new Set(),
+function mk(r,sh,dn){const NX=(HC+1)/2,NY=(R-1)/2,g=Array.from({length:R},()=>Array(C).fill('#')),vis=new Set(),
 cin=(a,b)=>a>=0&&a<NX&&b>=0&&b<NY&&inShape(sh,2*a+1,2*b+1),op=(a,b,nx,ny)=>{g[ny*2+1][nx*2+1]='.';g[b+ny+1][a+nx+1]='.'};
 let s0=[NX-1,(HY+3)/2];if(!cin(s0[0],s0[1])){s0=null;for(let b=0;b<NY&&!s0;b++)for(let a=NX-1;a>=0&&!s0;a--)if(cin(a,b))s0=[a,b]}
 vis.add(s0[1]*NX+s0[0]);g[s0[1]*2+1][s0[0]*2+1]='.';const st=[s0];
 while(st.length){const[a,b]=st[st.length-1],nb=[];for(let d=0;d<4;d++){const nx=a+DX[d],ny=b+DY[d];if(!cin(nx,ny)||vis.has(ny*NX+nx))continue;nb.push([nx,ny])}
 if(!nb.length){st.pop();continue}const[nx,ny]=nb[Math.floor(r()*nb.length)];vis.add(ny*NX+nx);op(a,b,nx,ny);st.push([nx,ny])}
 for(let b=0;b<NY;b++)for(let a=0;a<NX;a++){if(!vis.has(b*NX+a))continue;let n=0;const cl=[];for(let d=0;d<4;d++){const nx=a+DX[d],ny=b+DY[d];if(!cin(nx,ny)||!vis.has(ny*NX+nx))continue;if(g[b+ny+1][a+nx+1]=='.')n++;else cl.push([nx,ny])}
-if(cl.length&&((n<2&&r()<.8)||r()<.1)){const[nx,ny]=cl[Math.floor(r()*cl.length)];op(a,b,nx,ny)}}
+if(cl.length&&((n<2&&r()<.8)||r()<(dn==null?.1:dn))){const[nx,ny]=cl[Math.floor(r()*cl.length)];op(a,b,nx,ny)}}
 for(let y=0;y<R;y++)for(let x=0;x<HC;x++)g[y][C-1-x]=g[y][x];
 for(let y=HY-2;y<=HY+2;y++)for(let x=HC-3;x<=HC+3;x++)g[y][x]=' ';
 for(let x=HC-2;x<=HC+2;x++){g[HY-1][x]='#';g[HY+1][x]='#'}g[HY-1][HC]='-';g[HY][HC-2]='#';g[HY][HC+2]='#';return g}
-function decorate(g,n,r){const pl=plan(n),open=[];for(let y=0;y<R;y++)for(let x=0;x<C;x++)if(g[y][x]=='.')open.push([x,y]);if(open.length<60)return null;
+function decorate(g,n,r){const pl=plan(n),open=[];for(let y=0;y<R;y++)for(let x=0;x<C;x++)if(g[y][x]=='.')open.push([x,y]);if(open.length<45)return null;
 const c1=open.filter(c=>c[1]>HY+2).sort((a,b)=>b[1]-a[1]||Math.abs(a[0]-HC)-Math.abs(b[0]-HC)),sp=[];
 for(const gap of[3,2,1])for(const c of c1.concat(open)){if(sp.length>=6)break;if(!sp.includes(c)&&sp.every(s=>Math.abs(s[0]-c[0])+Math.abs(s[1]-c[1])>=gap))sp.push(c)}
 while(sp.length<6)sp.push(sp[sp.length-1]);SP=sp.map(c=>c.slice());sp.forEach(([x,y])=>g[y][x]=' ');
@@ -87,17 +97,18 @@ if(pl.mod=='portal'){const L=rest.filter(([x,y])=>x<HC-2&&g[y][x]=='.'&&g[y][C-1
 if(g[HY][1]!='#'){g[HY][0]=g[HY][C-1]=' '}return g}
 function conn(g){const s0=HY+2,sn=new Set([s0*C+HC]),q=[[HC,s0]];while(q.length){const[x,y]=q.pop();for(let d=0;d<4;d++){const nx=(x+DX[d]+C)%C,ny=y+DY[d];if(ny<0||ny>=R)continue;const c=g[ny][nx];if(c=='#'||c=='-'||sn.has(ny*C+nx))continue;sn.add(ny*C+nx);q.push([nx,ny])}}
 if(!sn.has((HY-2)*C+HC))return false;for(let y=0;y<R;y++)for(let x=0;x<C;x++)if((g[y][x]=='.'||g[y][x]=='o')&&!sn.has(y*C+x))return false;return true}
-function gen(n){let g;const pl=plan(n);pickDims(n);for(let a=0;a<80;a++){const r=rng(seed+n*7919+a*131);g=decorate(mk(r,pl.sh),n,r);if(g&&conn(g))return g}for(let a=0;a<80;a++){const r=rng(seed+n*31+a),h=decorate(mk(r,'plain'),n,r);if(h&&conn(h))return h}return g}
+function gen(n){let g;const pl=plan(n);pickDims(n);FB=false;for(let a=0;a<80;a++){const r=rng(seed+n*7919+a*131);g=decorate(mk(r,pl.sh,pl.dn),n,r);if(g&&conn(g))return g}
+FB=true;for(let a=0;a<80;a++){const r=rng(seed+n*31+a),h=decorate(mk(r,'plain',pl.dn),n,r);if(h&&conn(h))return h}return g}
 function mkMaze(col){const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.strokeStyle=col;x.lineWidth=2;x.lineCap='round';x.beginPath();
 for(let y=0;y<R;y++)for(let i=0;i<C;i++){const px=i*T,py=y*T,ch=grid[y][i];if(ch=='-'){x.fillStyle='#8a5cff';x.fillRect(px,py+6,T,3);continue}if(ch!='#')continue;x.fillStyle='#0b1240';x.fillRect(px,py,T,T);
 for(let d=0;d<4;d++){const ny=y+DY[d],nx=i+DX[d];if(ny<0||ny>=R||nx<0||nx>=C||grid[ny][nx]=='#')continue;
 if(d==0){x.moveTo(px+T-1,py);x.lineTo(px+T-1,py+T)}else if(d==1){x.moveTo(px,py+T-1);x.lineTo(px+T,py+T-1)}else if(d==2){x.moveTo(px+1,py);x.lineTo(px+1,py+T)}else{x.moveTo(px,py+1);x.lineTo(px+T,py+1)}}}
-x.stroke();return c}
+x.save();x.globalAlpha=.22;x.font=Math.round(Math.min(W,H)*.92)+'px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(plan().em,W/2,H/2+H*.03);x.restore();x.stroke();return c}
 function mkDM(){dm=Array.from({length:R},()=>Array(C).fill(1e9));dm[HY][HC]=0;const q=[[HC,HY]];while(q.length){const[x,y]=q.shift();for(let d=0;d<4;d++){const nx=(x+DX[d]+C)%C,ny=y+DY[d];if(!ok(nx,ny,true)||dm[ny][nx]<1e9)continue;dm[ny][nx]=dm[y][x]+1;q.push([nx,ny])}}}
 function gridStr(){return grid.map(r=>r.join('')).join('')}
 function setGrid(g,n){grid=g;G.lv=n;R=g.length;C=g[0].length;W=C*T;H=R*T;HC=(C-1)/2;HY=(R-3)/2;cv.width=W;cv.height=H;dk=null;rs();
 SC=[[C-2,0],[1,0],[C-1,R],[0,R]];PT=[];total=0;for(let y=0;y<R;y++)for(let x=0;x<C;x++){const c=grid[y][x];if(c=='.'||c=='o')total++;else if(c=='T')PT.push([x,y])}
-const h=(n*67+200)%360;mz=mkMaze('hsl('+h+',85%,58%)');mzW=mkMaze('#fff');mkDM()}
+mz=mkMaze(plan(n).col);mzW=mkMaze('#fff');mkDM()}
 function tele(e){const o=PT[0][0]==e.x/T&&PT[0][1]==e.y/T?PT[1]:PT[0];e.x=o[0]*T;e.y=o[1]*T;e.tp=1;ev('t',-1)}
 S.t=()=>tone(1200,.12,'sine',.06,300);
 function drawDark(){if(!dk){dk=document.createElement('canvas');dk.width=W;dk.height=H;dkx=dk.getContext('2d')}
@@ -107,7 +118,7 @@ cx.drawImage(dk,0,0)}
 function banner(){if(state!='ready'&&state!='clear')return;const p=plan(),y=H/2,w=Math.min(W-12,230);cx.textAlign='center';cx.textBaseline='middle';
 cx.fillStyle='rgba(4,6,26,.9)';rr(W/2-w/2,y-26,w,state=='ready'?60:32,8);cx.fill();cx.strokeStyle='#3ddc97';cx.lineWidth=1.5;cx.stroke();cx.fillStyle='#3ddc97';cx.font='bold 13px sans-serif';
 if(state=='clear'){cx.fillText('FASE COMPLETA!',W/2,y-10);return}
-cx.fillText('FASE '+G.lv+' · '+p.nm,W/2,y-12,w-8);cx.fillStyle='#e8ecff';cx.font='10px sans-serif';cx.fillText(SHN[p.sh]+' · '+p.h,W/2,y+4,w-8);
+cx.fillText('FASE '+G.lv+' · '+p.nm,W/2,y-12,w-8);cx.fillStyle='#e8ecff';cx.font='10px sans-serif';cx.fillText(p.em+' '+p.sn+' · '+p.h,W/2,y+4,w-8);
 cx.fillText('Labirinto '+C+'×'+R+(C<=15?' · mais fácil':C>=23?' · mais difícil':''),W/2,y+18,w-8)}
 // ---------- Simulação (solo e anfitrião) ----------
 function initP(n){P=Array.from({length:6},(_,i)=>({i,on:i<n?1:0,x:SP[i][0]*T,y:SP[i][1]*T,d:2,nd:2,acc:0,mv:0,al:1,inv:0,rt:0,sc:0,lv:3,dx:SP[i][0]*T,dy:SP[i][1]*T}))}
